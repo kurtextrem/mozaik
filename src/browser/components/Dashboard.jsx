@@ -1,11 +1,29 @@
-var React          = require('react');
-var _              = require('lodash');
-var Reflux         = require('reflux');
-var Widget         = require('./Widget.jsx');
-var DashboardStore = require('./../stores/DashboardStore');
+import React, { PropTypes } from 'react';
+import _                    from 'lodash';
+import { ListenerMixin }    from 'reflux';
+import Widget               from './Widget.jsx';
+import DashboardStore       from './../stores/DashboardStore';
 
-var Dashboard = React.createClass({
-    mixins: [Reflux.ListenerMixin],
+
+const Dashboard = React.createClass({
+    displayName: 'Dashboard',
+
+    propTypes: {
+        dashboard: PropTypes.shape({
+            title:   PropTypes.string,
+            columns: PropTypes.number.isRequired,
+            rows:    PropTypes.number.isRequired,
+            widgets: PropTypes.arrayOf(PropTypes.shape({
+                type:    PropTypes.string.isRequired,
+                x:       PropTypes.number.isRequired,
+                y:       PropTypes.number.isRequired,
+                columns: PropTypes.number.isRequired,
+                rows:    PropTypes.number.isRequired
+            })).isRequired
+        }).isRequired
+    },
+
+    mixins:[ListenerMixin],
 
     getInitialState() {
         return {
@@ -18,39 +36,56 @@ var Dashboard = React.createClass({
     },
 
     onDashboardStoreUpdate(index) {
+        const { dashboard } = this.props;
+
         this.setState({
-            isCurrent: index === this.props.dashboard.index
+            isCurrent: index === dashboard.index
         });
     },
 
     render() {
-        var columns = this.props.dashboard.columns;
-        var rows    = this.props.dashboard.rows;
+        const { dashboard: { columns, rows, widgets, title } } = this.props;
+        const { isCurrent }                                    = this.state;
 
-        var widgetNodes = _.map(this.props.dashboard.widgets, (widget, index) => {
-            var props = _.extend({}, _.omit(widget, ['columns', 'rows']), {
-                key:  index,
+        const widgetNodes = widgets.map((widget, index) => {
+            const props = _.extend({}, _.omit(widget, ['columns', 'rows']), {
+                key:  `widget.${index}`,
                 type: widget.type,
-                w:    (widget.columns / columns * 100) + '%',
-                h:    (widget.rows    / rows    * 100) + '%',
-                x:    (widget.x       / columns * 100) + '%',
-                y:    (widget.y       / rows    * 100) + '%'
+                w:    `${ widget.columns / columns * 100 }%`,
+                h:    `${ widget.rows    / rows    * 100 }%`,
+                x:    `${ widget.x       / columns * 100 }%`,
+                y:    `${ widget.y       / rows    * 100 }%`
             });
 
             return React.createElement(Widget, props);
         });
 
-        var cssClasses = 'dashboard__sheet';
-        if (this.state.isCurrent) {
+        let cssClasses     = 'dashboard__sheet';
+        let bodyCssClasses = 'dashboard__body';
+        if (isCurrent) {
             cssClasses += ' _is-current';
+        }
+
+        let titleNode = null;
+        if (title) {
+            bodyCssClasses += ' dashboard__body--with-header';
+            titleNode = (
+                <div className="dashboard__title">
+                    {title}
+                </div>
+            );
         }
 
         return (
             <div className={cssClasses}>
-                {widgetNodes}
+                {titleNode}
+                <div className={bodyCssClasses}>
+                    {widgetNodes}
+                </div>
             </div>
         );
     }
 });
 
-module.exports = Dashboard;
+
+export default Dashboard;
